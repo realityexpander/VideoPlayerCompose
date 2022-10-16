@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace 'com.plcoding.videoplayercompose'
+    namespace 'com.realityexpander.videoplayercompose'
     compileSdk 33
 
     defaultConfig {

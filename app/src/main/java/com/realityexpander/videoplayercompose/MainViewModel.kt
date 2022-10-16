@@ -19,7 +19,8 @@ class MainViewModel @Inject constructor(
     private val metaDataReader: MetaDataReader  // injected from VideoPlayerModule
 ): ViewModel() {
 
-    private val videoUris = savedStateHandle.getStateFlow("videoUris", emptyList<Uri>())
+    private val videoUris =
+        savedStateHandle.getStateFlow("videoUris", emptyList<Uri>())
 
     // Convert the Uri to VideoItem to get the name for the list in the UI
     val videoItems = videoUris.map { uris ->
@@ -44,14 +45,14 @@ class MainViewModel @Inject constructor(
     init {
         player.prepare() // setup the player
 
-        addVideoUri(Uri.parse("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"))
-        addVideoUri(Uri.parse("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4"))
-        addVideoUri(Uri.parse("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"))
-        addVideoUri(Uri.parse("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4"))
-        addVideoUri(Uri.parse("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4"))
-        addVideoUri(Uri.parse("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4"))
-        addVideoUri(Uri.parse("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4"))
-        addVideoUri(Uri.parse("http://techslides.com/demos/sample-videos/small.mp4"))
+        if(videoUris.value.isEmpty()) {  // dont load the links if coming back from process death
+            addVideoUri(Uri.parse("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"))
+            addVideoUri(Uri.parse("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4"))
+            addVideoUri(Uri.parse("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"))
+            addVideoUri(Uri.parse("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4"))
+            addVideoUri(Uri.parse("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4"))
+            addVideoUri(Uri.parse("http://techslides.com/demos/sample-videos/small.mp4"))
+        }
     }
 
     fun addVideoUri(uri: Uri) {
