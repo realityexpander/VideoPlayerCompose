@@ -1,4 +1,4 @@
-package com.plcoding.videoplayercompose
+package com.realityexpander.videoplayercompose
 
 import android.app.Application
 import android.net.Uri
@@ -20,22 +20,31 @@ class MetaDataReaderImpl(
         if(contentUri.scheme != "content") {
             return null
         }
+
         val fileName = app.contentResolver
-            .query(
+            .query(  // sets up a SQL query to get the file name
                 contentUri,
                 arrayOf(MediaStore.Video.VideoColumns.DISPLAY_NAME),
                 null,
                 null,
                 null,
             )
-            ?.use { cursor ->
+            ?.use { cursor -> // cursor is a pointer to the first row of the result set
+
+                // find the column index of the display name of the result set
                 val index = cursor.getColumnIndex(MediaStore.Video.VideoColumns.DISPLAY_NAME)
+
+                // Go to the first row of the result set
                 cursor.moveToFirst()
+
+                // get the value of the display name column
                 cursor.getString(index)
             }
+
         return fileName?.let { fullFileName ->
             MetaData(
-                fileName = Uri.parse(fullFileName).lastPathSegment ?: return null
+                fileName = Uri.parse(fullFileName).lastPathSegment
+                    ?: return null
             )
         }
     }

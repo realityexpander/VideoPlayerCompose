@@ -1,4 +1,4 @@
-package com.plcoding.videoplayercompose.ui.theme
+package com.realityexpander.videoplayercompose.ui.theme
 
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Shapes

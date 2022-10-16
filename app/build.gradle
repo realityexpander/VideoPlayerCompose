@@ -11,7 +11,7 @@ android {
     compileSdk 33
 
     defaultConfig {
-        applicationId "com.plcoding.videoplayercompose"
+        applicationId "com.realityexpander.videoplayercompose"
         minSdk 26
         targetSdk 33
         versionCode 1

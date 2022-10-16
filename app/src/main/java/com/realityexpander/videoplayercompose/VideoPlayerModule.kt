@@ -1,4 +1,4 @@
-package com.plcoding.videoplayercompose
+package com.realityexpander.videoplayercompose
 
 import android.app.Application
 import androidx.media3.common.Player

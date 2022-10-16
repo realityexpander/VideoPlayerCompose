@@ -1,4 +1,4 @@
-package com.plcoding.videoplayercompose
+package com.realityexpander.videoplayercompose
 
 import org.junit.Test
 
