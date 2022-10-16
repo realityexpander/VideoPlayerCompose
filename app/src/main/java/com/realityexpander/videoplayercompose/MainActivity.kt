@@ -175,6 +175,8 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+// Allows the contentResolver to access the app cache storage
+// From this tutorial: https://fvilarino.medium.com/using-activity-result-contracts-in-jetpack-compose-14b179fb87de
 class ComposeFileProvider : FileProvider(
     //R.xml.filepaths
 ) {
