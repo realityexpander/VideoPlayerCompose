@@ -213,12 +213,15 @@ fun moveTmpFileToAppMovies(fromUri: Uri, context: Context) {
     inputStream.copyTo(outputStream)
     inputStream.close()
     outputStream.close()
+
+    context.contentResolver.delete(fromUri, null, null)
 }
 
 // Move cached URI file from cache to main storage - storage/self/primary/Movies/VideoPlayerCompose
 // Note: Selectable by the user from file picker
 fun moveTmpFileToMainStorage(fromUri: Uri, context: Context) {
-    val directoryName = "/VideoPlayerCompose"
+    val appName = context.getString(R.string.app_name) ?: BuildConfig.APPLICATION_ID.split(".").last()
+    val directoryName = "/$appName"
     val defaultFileName = "video.mp4"
 
     try {
@@ -244,8 +247,6 @@ fun moveTmpFileToMainStorage(fromUri: Uri, context: Context) {
         Log.e("VideoPlayerCompose", "Error moving file: ${e.message}")
     }
 }
-
-// move cached file to app folder
 
 
 
