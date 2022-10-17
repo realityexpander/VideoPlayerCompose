@@ -34,6 +34,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.media3.ui.PlayerView
+import com.realityexpander.videoplayercompose.ComposeFileProvider.Companion.deleteExistingRecordedVideoUri
 import com.realityexpander.videoplayercompose.ComposeFileProvider.Companion.getExistingRecordedVideoUri
 import com.realityexpander.videoplayercompose.ui.theme.VideoPlayerComposeTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -85,10 +86,9 @@ class MainActivity : ComponentActivity() {
                         contract = CaptureVideo(),
                         onResult = { success ->
                             if (success) {
-                                recordedVideoUri?.let {
-                                }
                             } else {
                                 recordedVideoUri = null
+                                deleteExistingRecordedVideoUri(context)
                             }
                         },
                     )
@@ -391,6 +391,16 @@ class ComposeFileProvider : FileProvider() {
             }
 
             return null
+        }
+
+        fun deleteExistingRecordedVideoUri(context: Context) {
+            val directory = File(context.cacheDir, "videos")
+            directory.mkdirs()
+
+            val file = File(directory, "new_video.mp4")
+            if (file.exists()) {
+                file.delete()
+            }
         }
     }
 }
