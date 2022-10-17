@@ -73,7 +73,7 @@ class MainActivity : ComponentActivity() {
                     rememberLauncherForActivityResult(
                         contract = CaptureVideo(),
                         onResult = { success ->
-                            if(success) {
+                            if (success) {
                                 videoUri?.let {
                                     viewModel.addVideoUriToPlayer(videoUri!!)
                                 }
@@ -173,14 +173,15 @@ class MainActivity : ComponentActivity() {
                         }
                         Spacer(modifier = Modifier.width(16.dp))
 
-                        Text(videoUri?.path
-                            ?.split("/")
-                            ?.last()
-                            ?.truncateMiddle(18)
-                            ?: "Ready to capture video"
+                        Text(
+                            videoUri?.path
+                                ?.split("/")
+                                ?.last()
+                                ?.truncateMiddle(18)
+                                ?: "Ready to capture video"
                         )
 
-                        if(videoUri != null) {
+                        if (videoUri != null) {
 
                             IconButton(onClick = {
                                 videoUri?.let {
@@ -225,7 +226,7 @@ class MainActivity : ComponentActivity() {
                     if (showConfirmDeleteVideo) {
                         ConfirmDeleteVideoDialog(
                             onConfirm = {
-                                if(itemContentUriToDelete != null ) {
+                                if (itemContentUriToDelete != null) {
                                     viewModel.removeVideoUriFromPlayer(itemContentUriToDelete!!)
                                     removeVideoExternalFileByUri(
                                         context,
@@ -255,9 +256,12 @@ fun ConfirmDeleteVideoDialog(
     AlertDialog(
         onDismissRequest = onDismissRequest,
         title = { Text("Delete video?") },
-        text = { Text("Are you sure you want to delete this video?" +
-                            "\n\n${videoUri?.path?.split("/")?.last()}")
-               },
+        text = {
+            Text(
+                "Are you sure you want to delete this video?" +
+                        "\n\n${videoUri?.path?.split("/")?.last()}"
+            )
+        },
         confirmButton = {
             TextButton(onClick = {
                 onConfirm()
@@ -274,7 +278,6 @@ fun ConfirmDeleteVideoDialog(
         }
     )
 }
-
 
 
 // Truncate string in the middle and add ellipsis
@@ -299,7 +302,7 @@ class ComposeFileProvider : FileProvider(
             directory.mkdirs()
 
             val file = File(directory, "new_video.mp4")
-            if(file.exists()) {
+            if (file.exists()) {
                 file.delete()
             }
 
@@ -336,9 +339,11 @@ class ComposeFileProvider : FileProvider(
 fun loadVideoExternalFiles(context: Context, onFileLoaded: (File) -> Unit) {
     val appName = context.getString(R.string.app_name)
     val directoryName = "/$appName"
-    val directory = File(Environment.getExternalStoragePublicDirectory(
+    val directory = File(
+        Environment.getExternalStoragePublicDirectory(
             Environment.DIRECTORY_MOVIES
-        ).toString() + directoryName)
+        ).toString() + directoryName
+    )
     directory.mkdirs()
 
     val files = directory.listFiles()
@@ -348,7 +353,7 @@ fun loadVideoExternalFiles(context: Context, onFileLoaded: (File) -> Unit) {
 }
 
 fun removeVideoExternalFileByUri(context: Context, deleteUri: Uri?) {
-    if(deleteUri == null) return
+    if (deleteUri == null) return
 
     // Delete the external file
     try {
@@ -363,8 +368,10 @@ fun removeVideoExternalFileByUri(context: Context, deleteUri: Uri?) {
 // Note: not selectable by the user.
 fun moveTmpFileToAppMovies(fromUri: Uri, context: Context) {
     val inputStream = context.contentResolver.openInputStream(fromUri)!!
-    val file = File(context.getExternalFilesDir(Environment.DIRECTORY_MOVIES),
-        fromUri.lastPathSegment ?:  "video.mp4")
+    val file = File(
+        context.getExternalFilesDir(Environment.DIRECTORY_MOVIES),
+        fromUri.lastPathSegment ?: "video.mp4"
+    )
     val outputStream = FileOutputStream(file)
 
     inputStream.copyTo(outputStream)
@@ -376,18 +383,24 @@ fun moveTmpFileToAppMovies(fromUri: Uri, context: Context) {
 
 // Move cached URI file from cache to main storage - storage/self/primary/Movies/VideoPlayerCompose
 // Note: Selectable by the user from file picker
-fun moveTmpUriToMainStorage(fromUri: Uri, context: Context, onSuccessCallback: (movedFile: File) -> Unit) {
-    val appName = context.getString(R.string.app_name) ?: BuildConfig.APPLICATION_ID.split(".").last()
+fun moveTmpUriToMainStorage(
+    fromUri: Uri,
+    context: Context,
+    onSuccessCallback: (movedFile: File) -> Unit
+) {
+    val appName =
+        context.getString(R.string.app_name) ?: BuildConfig.APPLICATION_ID.split(".").last()
     val directoryName = "/$appName"
     val defaultFileName =
-            "video_" +
-            UUID.randomUUID().toString().truncateMiddle(10, ellipses = false) +
-            ".mp4"
+        "video_" +
+                UUID.randomUUID().toString().truncateMiddle(10, ellipses = false) +
+                ".mp4"
 
     try {
         // Make VideoPlayerCompose directory if it doesn't exist
         val toDirectory =
-            File(Environment.getExternalStoragePublicDirectory(
+            File(
+                Environment.getExternalStoragePublicDirectory(
                     Environment.DIRECTORY_MOVIES
                 ).toString() + directoryName
             )
