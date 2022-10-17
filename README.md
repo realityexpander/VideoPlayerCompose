@@ -3,6 +3,9 @@ Shows how to use the Exoplayer Video Player library inside compose
 
 - Allows user to playback web or locally recorded videos
 - Allows user to record videos
+- To record video press the "video camera" button
+- To saved the recorded video to public area, click the "Save" button.
+- To playback recorded video click on "new_video.mp4" text.
 
 [<img src="https://user-images.githubusercontent.com/5157474/196297387-557323ce-6cce-414d-b6ad-992de3f3adc2.png" width="220"/>](https://user-images.githubusercontent.com/5157474/196297387-557323ce-6cce-414d-b6ad-992de3f3adc2.png)
 [<img src="https://user-images.githubusercontent.com/5157474/196297405-2d653100-6a34-4656-b679-3d38dee3d48d.png" width="220"/>](https://user-images.githubusercontent.com/5157474/196297405-2d653100-6a34-4656-b679-3d38dee3d48d.png)
