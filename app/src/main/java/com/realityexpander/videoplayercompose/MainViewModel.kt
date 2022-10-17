@@ -46,12 +46,16 @@ class MainViewModel @Inject constructor(
     private val _events = MutableSharedFlow<VideoPlayerEvent>()
     val events = _events.asSharedFlow()
 
+    val recordedVideoUri = savedStateHandle.getStateFlow("recordedVideoUri", null)
+
     init {
         player.prepare() // setup the player
     }
 
     // Add Video files from External storage
     fun loadVideoFilesFromAppExternalStorage() {
+        clearVideoPlayerItems()
+
         addVideoUriToPlayer(Uri.parse("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"))
         addVideoUriToPlayer(Uri.parse("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4"))
         addVideoUriToPlayer(Uri.parse("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"))
@@ -61,6 +65,11 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch {
             _events.emit( VideoPlayerEvent.onLoadVideoExternalFiles )
         }
+    }
+
+    fun clearVideoPlayerItems() {
+        player.clearMediaItems()
+        savedStateHandle["videoUris"] = emptyList<Uri>()
     }
 
     fun addVideoUriToPlayer(uri: Uri) {

@@ -33,6 +33,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.media3.ui.PlayerView
 import com.realityexpander.videoplayercompose.ui.theme.VideoPlayerComposeTheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 import java.io.*
 import java.util.*
 
@@ -51,7 +52,7 @@ class MainActivity : ComponentActivity() {
 
                 val context = LocalContext.current
 
-                var videoUri by remember {
+                var recordedVideoUri by remember {
                     mutableStateOf<Uri?>(null)
                 }
 
@@ -74,18 +75,22 @@ class MainActivity : ComponentActivity() {
                         contract = CaptureVideo(),
                         onResult = { success ->
                             if (success) {
-                                videoUri?.let {
-                                    viewModel.addVideoUriToPlayer(videoUri!!)
+                                recordedVideoUri?.let {
+                                    viewModel.addVideoUriToPlayer(recordedVideoUri!!)
                                 }
                             } else {
-                                viewModel.removeVideoUriFromPlayer(videoUri!!)
-                                videoUri = null
+                                viewModel.removeVideoUriFromPlayer(recordedVideoUri!!)
+                                recordedVideoUri = null
                             }
                         },
                     )
 
                 // Respond to lifecycle events
                 LaunchedEffect(true) {
+                    launch {
+                        viewModel.loadVideoFilesFromAppExternalStorage()
+                    }
+
                     viewModel.events.collect { event ->
                         when (event) {
                             VideoPlayerEvent.onLoadVideoExternalFiles -> {
@@ -100,11 +105,11 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                // Load the videos from the external files directory
-                LaunchedEffect(true) {
-                    // load video files from external storage for app
-                    viewModel.loadVideoFilesFromAppExternalStorage()
-                }
+//                // Load the videos from the external files directory
+//                LaunchedEffect(true) {
+//                    // load video files from external storage for app
+//                    viewModel.loadVideoFilesFromAppExternalStorage()
+//                }
 
                 // This `lifecycle` is used to pause/resume the video in the background
                 var lifecycle by remember {
@@ -165,12 +170,12 @@ class MainActivity : ComponentActivity() {
 
                         IconButton(onClick = {
                             // If there is a cached video URI from a previous recording, remove it.
-                            if(videoUri!=null) {
-                                viewModel.removeVideoUriFromPlayer(videoUri!!)
-                                videoUri = null
+                            if(recordedVideoUri!=null) {
+                                viewModel.removeVideoUriFromPlayer(recordedVideoUri!!)
+                                recordedVideoUri = null
                             }
-                            videoUri = ComposeFileProvider.getVideoUri(context)
-                            captureVideoLauncher.launch(videoUri)
+                            recordedVideoUri = ComposeFileProvider.getVideoUri(context)
+                            captureVideoLauncher.launch(recordedVideoUri)
                         }) {
                             Icon(
                                 imageVector = Icons.Default.Videocam,
@@ -180,21 +185,21 @@ class MainActivity : ComponentActivity() {
                         Spacer(modifier = Modifier.width(16.dp))
 
                         Text(
-                            videoUri?.path
+                            recordedVideoUri?.path
                                 ?.split("/")
                                 ?.last()
                                 ?.truncateMiddle(18)
                                 ?: "Ready to capture video"
                         )
 
-                        if (videoUri != null) {
+                        if (recordedVideoUri != null) {
 
                             IconButton(onClick = {
-                                videoUri?.let {
-                                    moveTmpUriToMainStorage(videoUri!!, context) { newFile ->
-                                        viewModel.removeVideoUriFromPlayer(videoUri!!)
+                                recordedVideoUri?.let {
+                                    moveTmpUriToMainStorage(recordedVideoUri!!, context) { newFile ->
+                                        viewModel.removeVideoUriFromPlayer(recordedVideoUri!!)
                                         viewModel.addVideoFileToPlayer(newFile)
-                                        videoUri = null
+                                        recordedVideoUri = null
                                     }
                                 }
                             }) {
