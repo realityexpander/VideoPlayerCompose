@@ -60,18 +60,18 @@ class MainActivity : ComponentActivity() {
                     rememberLauncherForActivityResult(
                         contract = ActivityResultContracts.GetContent(),
                         onResult = { uri ->
-                            uri?.let(viewModel::addVideoUri)  // Add the video file to the player
+                            uri?.let(viewModel::addVideoUriToPlayer)  // Add the video file to the player
                         }
                     )
 
-                // Capture a video file
+                // Capture a video file, stored in app cache
                 val captureVideoLauncher =
                     rememberLauncherForActivityResult(
                         contract = CaptureVideo(),
                         onResult = { success ->
                             if(success) {
                                 videoUri?.let {
-                                    viewModel.addVideoUri(videoUri!!)
+                                    viewModel.addVideoUriToPlayer(videoUri!!)
                                 }
                             } else {
                                 videoUri = null
@@ -79,12 +79,13 @@ class MainActivity : ComponentActivity() {
                         },
                     )
 
+                // Respond to lifecycle events
                 LaunchedEffect(true) {
                     viewModel.events.collect { event ->
                         when (event) {
                             VideoPlayerEvent.onLoadVideoExternalFiles -> {
-                                loadVideoExternalFiles(context) {
-                                    viewModel.addVideoFileToPlayer(it)
+                                loadVideoExternalFiles(context) { videoFile ->
+                                    viewModel.addVideoFileToPlayer(videoFile)
                                 }
                             }
                             else -> {
@@ -94,11 +95,11 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+                // Load the videos from the external files directory
                 LaunchedEffect(true) {
                     // load video files from external storage for app
                     viewModel.loadVideoFilesFromAppExternalStorage()
                 }
-
 
                 // This `lifecycle` is used to pause/resume the video in the background
                 var lifecycle by remember {

@@ -8,7 +8,6 @@ import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.io.File
@@ -44,29 +43,27 @@ class MainViewModel @Inject constructor(
         emptyList()
     )
 
-    val _events = MutableSharedFlow<VideoPlayerEvent>()
+    private val _events = MutableSharedFlow<VideoPlayerEvent>()
     val events = _events.asSharedFlow()
 
     init {
         player.prepare() // setup the player
-
-        if(videoUris.value.isEmpty()) {  // dont load the links if coming back from process death
-            addVideoUri(Uri.parse("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"))
-            addVideoUri(Uri.parse("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4"))
-            addVideoUri(Uri.parse("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"))
-            addVideoUri(Uri.parse("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4"))
-            addVideoUri(Uri.parse("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4"))
-        }
     }
 
+    // Add Video files from External storage
     fun loadVideoFilesFromAppExternalStorage() {
-        // Add Video files from External storage
+        addVideoUriToPlayer(Uri.parse("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"))
+        addVideoUriToPlayer(Uri.parse("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4"))
+        addVideoUriToPlayer(Uri.parse("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"))
+        addVideoUriToPlayer(Uri.parse("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4"))
+        addVideoUriToPlayer(Uri.parse("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4"))
+
         viewModelScope.launch {
             _events.emit( VideoPlayerEvent.onLoadVideoExternalFiles )
         }
     }
 
-    fun addVideoUri(uri: Uri) {
+    fun addVideoUriToPlayer(uri: Uri) {
         savedStateHandle["videoUris"] = videoUris.value + uri
         player.addMediaItem(MediaItem.fromUri(uri))
     }
