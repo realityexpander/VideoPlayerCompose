@@ -95,18 +95,9 @@ class MainViewModel @Inject constructor(
     fun removeVideoUriFromPlayer(uri: Uri) {
         savedStateHandle["videoUris"] = videoUris.value - uri
         for(i in 0 until player.mediaItemCount) {
-            if(player.getMediaItemAt(i)
-                    .localConfiguration
-                    ?.uri
-                    .toString()
-                    .split("/")
-                    .last()
-                == uri
-                    .toString()
-                    .split("/")
-                    .last()
-            ) {
+            if (player.getMediaItemAt(i).getName() == uri.getName()) {
                 player.removeMediaItem(i)
+                break
             }
         }
     }
@@ -119,5 +110,20 @@ class MainViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         player.release()
+    }
+
+    private fun MediaItem.getName(): String {
+        return localConfiguration
+            ?.uri
+            .toString()
+            .split("/")
+            .last()
+    }
+
+    private fun Uri.getName(): String {
+        return this
+            .toString()
+            .split("/")
+            .last()
     }
 }
