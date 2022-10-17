@@ -78,6 +78,7 @@ class MainActivity : ComponentActivity() {
                                     viewModel.addVideoUriToPlayer(videoUri!!)
                                 }
                             } else {
+                                viewModel.removeVideoUriFromPlayer(videoUri!!)
                                 videoUri = null
                             }
                         },
@@ -163,6 +164,11 @@ class MainActivity : ComponentActivity() {
                         Spacer(modifier = Modifier.width(16.dp))
 
                         IconButton(onClick = {
+                            // If there is a cached video URI from a previous recording, remove it.
+                            if(videoUri!=null) {
+                                viewModel.removeVideoUriFromPlayer(videoUri!!)
+                                videoUri = null
+                            }
                             videoUri = ComposeFileProvider.getVideoUri(context)
                             captureVideoLauncher.launch(videoUri)
                         }) {
@@ -297,7 +303,9 @@ class ComposeFileProvider : FileProvider(
     //R.xml.filepaths
 ) {
     companion object {
-        fun getVideoUri(context: Context): Uri {
+        fun getVideoUri(
+            context: Context,
+        ): Uri {
             val directory = File(context.cacheDir, "videos")
             directory.mkdirs()
 
