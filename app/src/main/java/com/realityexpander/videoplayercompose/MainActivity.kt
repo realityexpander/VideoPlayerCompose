@@ -5,12 +5,14 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.contract.ActivityResultContracts.*
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -21,6 +23,7 @@ import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -31,9 +34,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.media3.ui.PlayerView
+import com.realityexpander.videoplayercompose.ComposeFileProvider.Companion.getExistingRecordedVideoUri
 import com.realityexpander.videoplayercompose.ui.theme.VideoPlayerComposeTheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.*
 import java.util.*
 
@@ -51,12 +57,16 @@ class MainActivity : ComponentActivity() {
                 val videoItems by viewModel.videoItems.collectAsState()
 
                 val context = LocalContext.current
+                val scope = rememberCoroutineScope()
 
+                // Holds the recorded video URI, if any
                 var recordedVideoUri by remember {
-                    mutableStateOf<Uri?>(null)
+                    mutableStateOf<Uri?>(
+                        getExistingRecordedVideoUri(context) // upon config change, check if there's a recorded video.
+                    )
                 }
 
-                val (showConfirmDeleteVideo, setShowConfirmDeleteVideo) =
+                val (showConfirmDeleteVideo, setShowConfirmDeleteVideoDialog) =
                     remember { mutableStateOf(false) }
                 var itemContentUriToDelete by remember { mutableStateOf<Uri?>(null) }
 
@@ -76,26 +86,23 @@ class MainActivity : ComponentActivity() {
                         onResult = { success ->
                             if (success) {
                                 recordedVideoUri?.let {
-                                    viewModel.addVideoUriToPlayer(recordedVideoUri!!)
                                 }
                             } else {
-                                viewModel.removeVideoUriFromPlayer(recordedVideoUri!!)
                                 recordedVideoUri = null
                             }
                         },
                     )
 
-                // Respond to lifecycle events
-                LaunchedEffect(true) {
-                    launch {
-                        viewModel.loadVideoFilesFromAppExternalStorage()
-                    }
 
+                // Respond to events from the viewModel
+                LaunchedEffect(true) {
                     viewModel.events.collect { event ->
                         when (event) {
                             VideoPlayerEvent.onLoadVideoExternalFiles -> {
-                                loadVideoExternalFiles(context) { videoFile ->
-                                    viewModel.addVideoFileToPlayer(videoFile)
+                                scope.launch {
+                                    loadVideoExternalFiles(context) { videoFile ->
+                                        viewModel.addVideoFileToPlayer(videoFile)
+                                    }
                                 }
                             }
                             else -> {
@@ -105,11 +112,6 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-//                // Load the videos from the external files directory
-//                LaunchedEffect(true) {
-//                    // load video files from external storage for app
-//                    viewModel.loadVideoFilesFromAppExternalStorage()
-//                }
 
                 // This `lifecycle` is used to pause/resume the video in the background
                 var lifecycle by remember {
@@ -168,13 +170,16 @@ class MainActivity : ComponentActivity() {
                         }
                         Spacer(modifier = Modifier.width(16.dp))
 
+                        // Capture Video
                         IconButton(onClick = {
                             // If there is a cached video URI from a previous recording, remove it.
                             if(recordedVideoUri!=null) {
-                                viewModel.removeVideoUriFromPlayer(recordedVideoUri!!)
-                                recordedVideoUri = null
+                                scope.launch {
+                                    viewModel.removeVideoUriFromPlayer(recordedVideoUri!!)
+                                    recordedVideoUri = null
+                                }
                             }
-                            recordedVideoUri = ComposeFileProvider.getVideoUri(context)
+                            recordedVideoUri = ComposeFileProvider.getNewRecordedVideoUri(context)
                             captureVideoLauncher.launch(recordedVideoUri)
                         }) {
                             Icon(
@@ -185,21 +190,36 @@ class MainActivity : ComponentActivity() {
                         Spacer(modifier = Modifier.width(16.dp))
 
                         Text(
-                            recordedVideoUri?.path
+                            text = recordedVideoUri?.path
                                 ?.split("/")
                                 ?.last()
                                 ?.truncateMiddle(18)
-                                ?: "Ready to capture video"
+                            ?:
+                                "Ready to capture video",
+                            modifier = Modifier
+                                    .clickable {
+                                        recordedVideoUri?.let { videoUri ->
+                                            viewModel.playTempRecordedVideo(videoUri)
+                                        } ?: run {
+                                            Toast.makeText(
+                                                context,
+                                                "No video to play",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    }
+                                    .align(Alignment.CenterVertically)
                         )
 
+                        // Save
                         if (recordedVideoUri != null) {
-
                             IconButton(onClick = {
                                 recordedVideoUri?.let {
                                     moveTmpUriToMainStorage(recordedVideoUri!!, context) { newFile ->
                                         viewModel.removeVideoUriFromPlayer(recordedVideoUri!!)
                                         viewModel.addVideoFileToPlayer(newFile)
                                         recordedVideoUri = null
+//                                        viewModel.setRecordedVideoUri(null)
                                     }
                                 }
                             }) {
@@ -217,7 +237,7 @@ class MainActivity : ComponentActivity() {
                     ) {
                         items(videoItems) { item ->
                             Text(
-                                text = item.name,
+                                text = item.contentUri.scheme +" -> "+ item.name ,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(8.dp)
@@ -227,7 +247,15 @@ class MainActivity : ComponentActivity() {
                                         },
                                         onLongClick = {
                                             itemContentUriToDelete = item.contentUri
-                                            setShowConfirmDeleteVideo(true)
+                                            if(itemContentUriToDelete!!.scheme == "file") {
+                                                setShowConfirmDeleteVideoDialog(true)
+                                            } else {
+                                                Toast.makeText(
+                                                    context,
+                                                    "Can't delete a http sourced video.",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
                                         }
                                     )
                             )
@@ -238,16 +266,18 @@ class MainActivity : ComponentActivity() {
                         ConfirmDeleteVideoDialog(
                             onConfirm = {
                                 if (itemContentUriToDelete != null) {
+
+                                    // delete file
                                     viewModel.removeVideoUriFromPlayer(itemContentUriToDelete!!)
                                     removeVideoExternalFileByUri(
                                         context,
                                         itemContentUriToDelete
                                     )
                                 }
-                                setShowConfirmDeleteVideo(false)
+                                setShowConfirmDeleteVideoDialog(false)
                             },
                             onDismissRequest = {
-                                setShowConfirmDeleteVideo(false)
+                                setShowConfirmDeleteVideoDialog(false)
                             },
                             videoUri = itemContentUriToDelete
                         )
@@ -290,6 +320,26 @@ fun ConfirmDeleteVideoDialog(
     )
 }
 
+@Composable
+fun InfoAlertDialog(
+    onDismissRequest: () -> Unit,
+    title: String,
+    text: String
+) {
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        title = { Text(title) },
+        text = { Text(text) },
+        confirmButton = {
+            TextButton(onClick = {
+                onDismissRequest()
+            }) {
+                Text("OK")
+            }
+        }
+    )
+}
+
 
 // Truncate string in the middle and add ellipsis
 fun String.truncateMiddle(maxLength: Int, ellipses: Boolean = true): String {
@@ -304,13 +354,11 @@ fun String.truncateMiddle(maxLength: Int, ellipses: Boolean = true): String {
 
 // Allows the contentResolver to access the app cache storage
 // From this tutorial: https://fvilarino.medium.com/using-activity-result-contracts-in-jetpack-compose-14b179fb87de
-class ComposeFileProvider : FileProvider(
-    //R.xml.filepaths
-) {
+class ComposeFileProvider : FileProvider() {
+    // R.xml.filepaths // This uses the filepaths.xml file in the res/xml folder
+
     companion object {
-        fun getVideoUri(
-            context: Context,
-        ): Uri {
+        fun getNewRecordedVideoUri(context: Context): Uri {
             val directory = File(context.cacheDir, "videos")
             directory.mkdirs()
 
@@ -328,11 +376,21 @@ class ComposeFileProvider : FileProvider(
 
             val authority = context.packageName + ".fileprovider"
 
-            return getUriForFile(
-                context,
-                authority,
-                file,
-            )
+            return getUriForFile(context, authority, file)
+        }
+
+        fun getExistingRecordedVideoUri(context: Context): Uri? {
+            val directory = File(context.cacheDir, "videos")
+            directory.mkdirs()
+
+            val file = File(directory, "new_video.mp4")
+            if (file.exists()) {
+                val authority = context.packageName + ".fileprovider"
+
+                return getUriForFile(context, authority, file)
+            }
+
+            return null
         }
     }
 }
@@ -350,19 +408,23 @@ class ComposeFileProvider : FileProvider(
 //}
 
 // Load from external storage - storage/self/primary/Movies/VideoPlayerCompose
-fun loadVideoExternalFiles(context: Context, onFileLoaded: (File) -> Unit) {
-    val appName = context.getString(R.string.app_name)
-    val directoryName = "/$appName"
-    val directory = File(
-        Environment.getExternalStoragePublicDirectory(
-            Environment.DIRECTORY_MOVIES
-        ).toString() + directoryName
-    )
-    directory.mkdirs()
+suspend fun loadVideoExternalFiles(context: Context, onFileLoaded: (File) -> Unit) {
+    withContext(Dispatchers.IO) {
+        val appName = context.getString(R.string.app_name)
+        val directoryName = "/$appName"
+        val directory = File(
+            Environment.getExternalStoragePublicDirectory(
+                Environment.DIRECTORY_MOVIES
+            ).toString() + directoryName
+        )
+        directory.mkdirs()
 
-    val files = directory.listFiles()
-    files?.forEach {
-        onFileLoaded(it)
+        val files = directory.listFiles()
+        files?.forEach {
+            withContext(Dispatchers.Main) {
+                onFileLoaded(it)
+            }
+        }
     }
 }
 
@@ -435,6 +497,7 @@ fun moveTmpUriToMainStorage(
         onSuccessCallback(file)
     } catch (e: Exception) {
         Log.e("VideoPlayerCompose", "moveTmpUriToMainStorage->Error moving file: ${e.message}")
+        e.printStackTrace()
     }
 }
 
