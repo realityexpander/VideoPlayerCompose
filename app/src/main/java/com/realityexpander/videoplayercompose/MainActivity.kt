@@ -55,6 +55,10 @@ class MainActivity : ComponentActivity() {
                     mutableStateOf<Uri?>(null)
                 }
 
+                val (showConfirmDeleteVideo, setShowConfirmDeleteVideo) =
+                    remember { mutableStateOf(false) }
+                var itemContentUriToDelete by remember { mutableStateOf<Uri?>(null) }
+
                 // Open a video file picker
                 val selectVideoLauncher =
                     rememberLauncherForActivityResult(
@@ -204,27 +208,74 @@ class MainActivity : ComponentActivity() {
                                 text = item.name,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(16.dp)
+                                    .padding(8.dp)
                                     .combinedClickable(
                                         onClick = {
                                             viewModel.playVideo(item.contentUri)
                                         },
                                         onLongClick = {
-                                            viewModel.removeVideoUriFromPlayer(item.contentUri)
-                                            removeVideoExternalFileByUri(
-                                                context,
-                                                item.contentUri
-                                            )
+                                            itemContentUriToDelete = item.contentUri
+                                            setShowConfirmDeleteVideo(true)
                                         }
                                     )
                             )
                         }
+                    }
+
+                    if (showConfirmDeleteVideo) {
+                        ConfirmDeleteVideoDialog(
+                            onConfirm = {
+                                if(itemContentUriToDelete != null ) {
+                                    viewModel.removeVideoUriFromPlayer(itemContentUriToDelete!!)
+                                    removeVideoExternalFileByUri(
+                                        context,
+                                        itemContentUriToDelete
+                                    )
+                                }
+                                setShowConfirmDeleteVideo(false)
+                            },
+                            onDismissRequest = {
+                                setShowConfirmDeleteVideo(false)
+                            },
+                            videoUri = itemContentUriToDelete
+                        )
                     }
                 }
             }
         }
     }
 }
+
+@Composable
+fun ConfirmDeleteVideoDialog(
+    onDismissRequest: () -> Unit,
+    onConfirm: () -> Unit,
+    videoUri: Uri?
+) {
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        title = { Text("Delete video?") },
+        text = { Text("Are you sure you want to delete this video?" +
+                            "\n\n${videoUri?.path?.split("/")?.last()}")
+               },
+        confirmButton = {
+            TextButton(onClick = {
+                onConfirm()
+            }) {
+                Text("Delete")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = {
+                onDismissRequest()
+            }) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+
 
 // Truncate string in the middle and add ellipsis
 fun String.truncateMiddle(maxLength: Int, ellipses: Boolean = true): String {
