@@ -10,14 +10,15 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.contract.ActivityResultContracts.*
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FileOpen
-import androidx.compose.material.icons.filled.Hexagon
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -33,11 +34,13 @@ import androidx.media3.ui.PlayerView
 import com.realityexpander.videoplayercompose.ui.theme.VideoPlayerComposeTheme
 import dagger.hilt.android.AndroidEntryPoint
 import java.io.*
+import java.util.*
 
 // Saves captured video to app cache storage
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    @OptIn(ExperimentalFoundationApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -67,10 +70,35 @@ class MainActivity : ComponentActivity() {
                         contract = CaptureVideo(),
                         onResult = { success ->
                             if(success) {
-                                videoUri?.let { viewModel.addVideoUri(videoUri!!) }
+                                videoUri?.let {
+                                    viewModel.addVideoUri(videoUri!!)
+                                }
+                            } else {
+                                videoUri = null
                             }
                         },
                     )
+
+                LaunchedEffect(true) {
+                    viewModel.events.collect { event ->
+                        when (event) {
+                            VideoPlayerEvent.onLoadVideoExternalFiles -> {
+                                loadVideoExternalFiles(context) {
+                                    viewModel.addVideoFileToPlayer(it)
+                                }
+                            }
+                            else -> {
+                                println("Unhandled event: $event")
+                            }
+                        }
+                    }
+                }
+
+                LaunchedEffect(true) {
+                    // load video files from external storage for app
+                    viewModel.loadVideoFilesFromAppExternalStorage()
+                }
+
 
                 // This `lifecycle` is used to pause/resume the video in the background
                 var lifecycle by remember {
@@ -140,18 +168,31 @@ class MainActivity : ComponentActivity() {
                         }
                         Spacer(modifier = Modifier.width(16.dp))
 
-                        IconButton(onClick = {
-                            //videoUri?.let { moveTmpFileToAppMovies(videoUri!!, context) }
-                            videoUri?.let { moveTmpFileToMainStorage(videoUri!!, context) }
-                        }) {
-                            Icon(
-                                imageVector = Icons.Default.Hexagon,
-                                contentDescription = "Move video"
-                            )
+                        Text(videoUri?.path
+                            ?.split("/")
+                            ?.last()
+                            ?.truncateMiddle(18)
+                            ?: "Ready to capture video"
+                        )
+
+                        if(videoUri != null) {
+
+                            IconButton(onClick = {
+                                videoUri?.let {
+                                    moveTmpUriToMainStorage(videoUri!!, context) { newFile ->
+                                        viewModel.removeVideoUriFromPlayer(videoUri!!)
+                                        viewModel.addVideoFileToPlayer(newFile)
+                                        videoUri = null
+                                    }
+                                }
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Default.Save,
+                                    contentDescription = "Move video"
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
                         }
-                        Spacer(modifier = Modifier.width(16.dp))
-
-
                     }
 
                     LazyColumn(
@@ -162,10 +203,19 @@ class MainActivity : ComponentActivity() {
                                 text = item.name,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable {
-                                        viewModel.playVideo(item.contentUri)
-                                    }
                                     .padding(16.dp)
+                                    .combinedClickable(
+                                        onClick = {
+                                            viewModel.playVideo(item.contentUri)
+                                        },
+                                        onLongClick = {
+                                            viewModel.removeVideoUriFromPlayer(item.contentUri)
+                                            removeVideoExternalFileByUri(
+                                                context,
+                                                item.contentUri
+                                            )
+                                        }
+                                    )
                             )
                         }
                     }
@@ -173,6 +223,17 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+}
+
+// Truncate string in the middle and add ellipsis
+fun String.truncateMiddle(maxLength: Int, ellipses: Boolean = true): String {
+    if (this.length <= maxLength) {
+        return this
+    }
+    val middle = maxLength / 2
+    return this.substring(0, middle) +
+            (if (ellipses) "..." else "") +
+            this.substring(this.length - middle)
 }
 
 // Allows the contentResolver to access the app cache storage
@@ -185,11 +246,17 @@ class ComposeFileProvider : FileProvider(
             val directory = File(context.cacheDir, "videos")
             directory.mkdirs()
 
-            val file = File.createTempFile(
-                "video_",
-                ".mp4",
-                directory,
-            )
+            val file = File(directory, "new_video.mp4")
+            if(file.exists()) {
+                file.delete()
+            }
+
+            // create a unique temporary file with unique name
+            //val file = File.createTempFile(
+            //    "video_",
+            //    ".mp4",
+            //    directory,
+            //)
             val authority = context.packageName + ".fileprovider"
 
             return getUriForFile(
@@ -201,6 +268,44 @@ class ComposeFileProvider : FileProvider(
     }
 }
 
+//fun loadAppVideoFilesFromCache(context: Context) {
+//    val directory = File(context.cacheDir, "videos")
+//    directory.mkdirs()
+//
+//    val files = directory.listFiles()
+//    files?.forEach {
+//        val uri = ComposeFileProvider.getVideoUri(context)
+//        val file = File(uri.path!!)
+//        file.copyTo(it, true)
+//    }
+//}
+
+// Load from external storage - storage/self/primary/Movies/VideoPlayerCompose
+fun loadVideoExternalFiles(context: Context, onFileLoaded: (File) -> Unit) {
+    val appName = context.getString(R.string.app_name)
+    val directoryName = "/$appName"
+    val directory = File(Environment.getExternalStoragePublicDirectory(
+            Environment.DIRECTORY_MOVIES
+        ).toString() + directoryName)
+    directory.mkdirs()
+
+    val files = directory.listFiles()
+    files?.forEach {
+        onFileLoaded(it)
+    }
+}
+
+fun removeVideoExternalFileByUri(context: Context, deleteUri: Uri?) {
+    if(deleteUri == null) return
+
+    // Delete the external file
+    try {
+        val file = File(deleteUri.path!!)
+        file.delete()
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
+}
 
 // move Uri file from cache to app external files - sdcard/Android/data/com.realityexpander.videoplayercompose/files/Movies
 // Note: not selectable by the user.
@@ -219,10 +324,13 @@ fun moveTmpFileToAppMovies(fromUri: Uri, context: Context) {
 
 // Move cached URI file from cache to main storage - storage/self/primary/Movies/VideoPlayerCompose
 // Note: Selectable by the user from file picker
-fun moveTmpFileToMainStorage(fromUri: Uri, context: Context) {
+fun moveTmpUriToMainStorage(fromUri: Uri, context: Context, onSuccessCallback: (movedFile: File) -> Unit) {
     val appName = context.getString(R.string.app_name) ?: BuildConfig.APPLICATION_ID.split(".").last()
     val directoryName = "/$appName"
-    val defaultFileName = "video.mp4"
+    val defaultFileName =
+            "video_" +
+            UUID.randomUUID().toString().truncateMiddle(10, ellipses = false) +
+            ".mp4"
 
     try {
         // Make VideoPlayerCompose directory if it doesn't exist
@@ -233,7 +341,8 @@ fun moveTmpFileToMainStorage(fromUri: Uri, context: Context) {
             )
         toDirectory.mkdirs()
 
-        val file = File(toDirectory, fromUri.lastPathSegment ?: defaultFileName)
+        //val file = File(toDirectory, fromUri.lastPathSegment ?: defaultFileName) // use original file name
+        val file = File(toDirectory, defaultFileName)
         val inputStream = context.contentResolver.openInputStream(fromUri)!!
         val outputStream = FileOutputStream(file)
 
@@ -241,10 +350,12 @@ fun moveTmpFileToMainStorage(fromUri: Uri, context: Context) {
         inputStream.close()
         outputStream.close()
 
-        // Delete the cached file
+        // Delete the cached Uri file
         context.contentResolver.delete(fromUri, null, null)
+
+        onSuccessCallback(file)
     } catch (e: Exception) {
-        Log.e("VideoPlayerCompose", "Error moving file: ${e.message}")
+        Log.e("VideoPlayerCompose", "moveTmpUriToMainStorage->Error moving file: ${e.message}")
     }
 }
 

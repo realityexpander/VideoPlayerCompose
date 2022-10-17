@@ -1,15 +1,17 @@
 package com.realityexpander.videoplayercompose
 
 import android.net.Uri
+import androidx.core.net.toUri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import java.io.File
 import javax.inject.Inject
 
 @HiltViewModel
@@ -42,6 +44,9 @@ class MainViewModel @Inject constructor(
         emptyList()
     )
 
+    val _events = MutableSharedFlow<VideoPlayerEvent>()
+    val events = _events.asSharedFlow()
+
     init {
         player.prepare() // setup the player
 
@@ -51,7 +56,13 @@ class MainViewModel @Inject constructor(
             addVideoUri(Uri.parse("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"))
             addVideoUri(Uri.parse("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4"))
             addVideoUri(Uri.parse("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4"))
-            addVideoUri(Uri.parse("http://techslides.com/demos/sample-videos/small.mp4"))
+        }
+    }
+
+    fun loadVideoFilesFromAppExternalStorage() {
+        // Add Video files from External storage
+        viewModelScope.launch {
+            _events.emit( VideoPlayerEvent.onLoadVideoExternalFiles )
         }
     }
 
@@ -64,8 +75,24 @@ class MainViewModel @Inject constructor(
         player.setMediaItem(
             videoItems.value.find {
                 it.contentUri == uri
-            }?.mediaItem ?: return
+            }?.mediaItem
+                ?: return
         )
+    }
+
+    fun removeVideoUriFromPlayer(uri: Uri) {
+        savedStateHandle["videoUris"] = videoUris.value - uri
+        for(i in 0 until player.mediaItemCount) {
+            if(player.getMediaItemAt(i).localConfiguration?.uri == uri) {
+                player.removeMediaItem(i)
+                break
+            }
+        }
+    }
+
+    fun addVideoFileToPlayer(file: File) {
+        savedStateHandle["videoUris"] = videoUris.value + file.toUri()
+        player.addMediaItem(MediaItem.fromUri(file.toUri()))
     }
 
     override fun onCleared() {
