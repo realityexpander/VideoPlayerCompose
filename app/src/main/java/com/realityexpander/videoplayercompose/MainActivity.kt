@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Videocam
@@ -211,7 +212,7 @@ class MainActivity : ComponentActivity() {
                                     .align(Alignment.CenterVertically)
                         )
 
-                        // Save
+                        // Save Recorded Video / Delete Recorded Video
                         if (recordedVideoUri != null) {
                             IconButton(onClick = {
                                 recordedVideoUri?.let {
@@ -219,16 +220,24 @@ class MainActivity : ComponentActivity() {
                                         viewModel.removeVideoUriFromPlayer(recordedVideoUri!!)
                                         viewModel.addVideoFileToPlayer(newFile)
                                         recordedVideoUri = null
-//                                        viewModel.setRecordedVideoUri(null)
                                     }
                                 }
                             }) {
                                 Icon(
                                     imageVector = Icons.Default.Save,
-                                    contentDescription = "Move video"
+                                    contentDescription = "Move video to main storage"
                                 )
                             }
-                            Spacer(modifier = Modifier.width(16.dp))
+
+                            IconButton(onClick = {
+                                recordedVideoUri = null
+                                deleteExistingRecordedVideoUri(context)
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "Delete Recorded video"
+                                )
+                            }
                         }
                     }
 
