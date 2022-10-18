@@ -316,14 +316,14 @@ fun ConfirmDeleteVideoDialog(
             TextButton(onClick = {
                 onConfirm()
             }) {
-                Text("Delete")
+                Text("DELETE")
             }
         },
         dismissButton = {
             TextButton(onClick = {
                 onDismissRequest()
             }) {
-                Text("Cancel")
+                Text("CANCEL")
             }
         }
     )
