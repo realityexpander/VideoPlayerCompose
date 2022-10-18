@@ -53,6 +53,8 @@ class MainViewModel @Inject constructor(
     }
 
     private fun loadVideos() {
+        clearVideoPlayerItems()
+
         viewModelScope.launch {
             // Load from web
             addVideoUriToPlayer(Uri.parse("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"))
