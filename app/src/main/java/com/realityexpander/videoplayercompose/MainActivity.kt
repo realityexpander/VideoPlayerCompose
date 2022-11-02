@@ -1,10 +1,19 @@
 package com.realityexpander.videoplayercompose
 
 import android.content.Context
+import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
+import android.text.Editable
+import android.text.InputType
+import android.text.TextWatcher
 import android.util.Log
+import android.view.KeyEvent
+import android.view.View
+import android.view.inputmethod.EditorInfo
+import android.widget.EditText
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -28,6 +37,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.FileProvider
@@ -69,6 +80,8 @@ class MainActivity : ComponentActivity() {
                 }
 
                 val (showConfirmDeleteVideo, setShowConfirmDeleteVideoDialog) =
+                    remember { mutableStateOf(false) }
+                val (showInfoAlertDialog, setShowInfoAlertDialog) =
                     remember { mutableStateOf(false) }
                 var itemContentUriToDelete by remember { mutableStateOf<Uri?>(null) }
 
@@ -159,6 +172,130 @@ class MainActivity : ComponentActivity() {
                     )
                     Spacer(modifier = Modifier.height(8.dp))
 
+                    AndroidView(
+                        factory = { context ->
+                            EditText(context).also {
+                                //it.setText(viewModel.player.currentMediaItemIndex.toString())
+                                it.fontFeatureSettings = FontFamily(Font(androidx.media3.ui.R.font.roboto_medium_numbers)).toString()
+//                                it.setText("hello")
+                                it.id = androidx.core.R.id.accessibility_custom_action_0
+                                it.setTextColor(Color.BLACK)
+                                it.hint="email"
+                                it.inputType = InputType.TYPE_CLASS_TEXT or
+                                        InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+                                it.imeOptions = EditorInfo.IME_ACTION_NEXT
+                                it.width = 600
+                                it.setSingleLine()
+                                it.setImeActionLabel("Next", EditorInfo.IME_ACTION_NEXT)
+                                it.addTextChangedListener(object : TextWatcher {
+                                    override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
+                                        //println("beforeTextChanged: $s, start: $start, count: $count, after: $after")
+                                    }
+                                    override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                                        //println("onTextChanged: $s, start: $start, before: $before, count: $count")
+                                    }
+                                    override fun afterTextChanged(s: Editable?) {
+                                        println("afterTextChanged: $s")
+                                        if (it.text.length < 4 && !it.text.contains("@")) {
+                                            //it.setError("error", null)
+                                            it.error = "email too short or missing @"
+                                        } else {
+                                            it.setError(null, null)
+                                        }
+                                    }
+                                })
+                            }.apply {
+                                //setText(viewModel.player.currentMediaItem?.mediaId)
+                            }
+                        },
+                        update = {
+                            if(it.text.length < 3) {
+                                it.setError("error - email too short", null)
+                            }
+                            else {
+                                it.setError(null, null)
+                            }
+                        },
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    AndroidView(
+                        factory = { context ->
+                            EditText(context).also {
+                                //it.setText(viewModel.player.currentMediaItemIndex.toString())
+                                //it.setText("hello")
+//                                it.fontFeatureSettings = FontFamily(Font(androidx.media3.ui.R.font.roboto_medium_numbers)).toString()
+                                it.fontFeatureSettings = FontFamily(Font(R.font.inter_regular)).toString()
+                                it.id = androidx.core.R.id.accessibility_custom_action_1
+                                it.setTextColor(Color.BLACK)
+                                it.hint="Password"
+                                it.inputType = InputType.TYPE_CLASS_TEXT or
+                                        InputType.TYPE_TEXT_VARIATION_PASSWORD or
+                                        InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+                                it.imeOptions = EditorInfo.IME_ACTION_DONE
+                                it.width = 600
+                                it.setBackgroundResource(android.R.color.transparent)
+//                                it.fontFeatureSettings = "smcp"
+//                                it.setSingleLine() // turns off the dots
+//                                it.setImeActionLabel("Done", EditorInfo.IME_ACTION_DONE)
+                                it.setOnEditorActionListener(TextView.OnEditorActionListener { v, actionId, event ->
+                                    println("event: $event, actionId: $actionId")
+                                    if (actionId == EditorInfo.IME_ACTION_DONE) {
+                                        //Toast.makeText(context, "Pressed Enter", Toast.LENGTH_SHORT).show()
+                                        setShowInfoAlertDialog(true)
+                                        true
+                                    } else {
+                                        false
+                                    }
+                                })
+//                                it.typeface = Typeface.create("roboto", Typeface.NORMAL)
+                                it.textSize = 24f
+                                it.addTextChangedListener(object : TextWatcher {
+                                    override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
+                                        //println("beforeTextChanged: $s, start: $start, count: $count, after: $after")
+                                    }
+
+                                    override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                                        //println("onTextChanged: $s, start: $start, before: $before, count: $count")
+                                    }
+
+                                    override fun afterTextChanged(s: Editable?) {
+                                        println("afterTextChanged: $s")
+                                        if (it.text.length < 3) {
+                                            //it.setError("error", null)
+                                            it.error = "password too short"
+                                        } else {
+                                            it.setError(null, null)
+                                        }
+                                    }
+                                })
+                                it.setOnKeyListener(View.OnKeyListener { v, keyCode, event ->
+                                    println("keycode: $keyCode")
+                                    if (event.action == KeyEvent.ACTION_DOWN) {
+                                        if(event == KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.ACTION_UP)) {
+                                            Toast.makeText(context, "Pressed Enter", Toast.LENGTH_SHORT).show()
+                                            false
+                                        } else {
+                                            false
+                                        }
+                                    } else {
+                                        false
+                                    }
+                                })
+                            }.apply {
+                            }
+                        },
+                        update = {
+//                            if(it.text.length > 3) {
+//                                it.setError("error", null)
+//                            }
+//                            else {
+//                                it.setError(null, null)
+//                            }
+                        },
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
                     Row {
 
                         IconButton(onClick = {
@@ -198,18 +335,20 @@ class MainActivity : ComponentActivity() {
                             ?:
                                 "Ready to capture video",
                             modifier = Modifier
-                                    .clickable {
-                                        recordedVideoUri?.let { videoUri ->
-                                            viewModel.playTempRecordedVideo(videoUri)
-                                        } ?: run {
-                                            Toast.makeText(
+                                .clickable {
+                                    recordedVideoUri?.let { videoUri ->
+                                        viewModel.playTempRecordedVideo(videoUri)
+                                    } ?: run {
+                                        Toast
+                                            .makeText(
                                                 context,
                                                 "No video to play",
                                                 Toast.LENGTH_SHORT
-                                            ).show()
-                                        }
+                                            )
+                                            .show()
                                     }
-                                    .align(Alignment.CenterVertically)
+                                }
+                                .align(Alignment.CenterVertically)
                         )
 
                         // Save Recorded Video / Delete Recorded Video
@@ -256,14 +395,16 @@ class MainActivity : ComponentActivity() {
                                         },
                                         onLongClick = {
                                             itemContentUriToDelete = item.contentUri
-                                            if(itemContentUriToDelete!!.scheme == "file") {
+                                            if (itemContentUriToDelete!!.scheme == "file") {
                                                 setShowConfirmDeleteVideoDialog(true)
                                             } else {
-                                                Toast.makeText(
-                                                    context,
-                                                    "Can't delete a http sourced video.",
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
+                                                Toast
+                                                    .makeText(
+                                                        context,
+                                                        "Can't delete a http sourced video.",
+                                                        Toast.LENGTH_SHORT
+                                                    )
+                                                    .show()
                                             }
                                         }
                                     )
@@ -289,6 +430,16 @@ class MainActivity : ComponentActivity() {
                                 setShowConfirmDeleteVideoDialog(false)
                             },
                             videoUri = itemContentUriToDelete
+                        )
+                    }
+
+                    if (showInfoAlertDialog) {
+                        InfoAlertDialog(
+                            onDismissRequest = {
+                                setShowInfoAlertDialog(false)
+                            },
+                            title = "Info",
+                            text = "This is a test message"
                         )
                     }
                 }
